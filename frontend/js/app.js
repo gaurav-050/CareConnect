@@ -102,6 +102,8 @@ function selectLoginPortal(role) {
   const passwordInput = document.getElementById('loginPassword');
   const titleEl = document.getElementById('loginBannerTitle');
   const descEl = document.getElementById('loginBannerDesc');
+  const bannerEl = document.getElementById('loginPortalBanner');
+  const btnSubmit = document.getElementById('btnLoginSubmit');
 
   [tabPatient, tabDoctor, tabAdmin].forEach(t => {
     if (t) {
@@ -110,20 +112,35 @@ function selectLoginPortal(role) {
   });
 
   if (role === 'PATIENT') {
-    if (tabPatient) tabPatient.className = 'login-role-tab py-2 rounded-xl transition bg-white text-teal-800 shadow-xs';
-    if (emailInput && !emailInput.value) emailInput.placeholder = 'e.g. alex@example.com';
+    if (tabPatient) tabPatient.className = 'login-role-tab py-2 rounded-xl transition bg-white text-teal-800 shadow-xs font-bold';
+    if (emailInput && !emailInput.value) emailInput.placeholder = 'e.g. alex@example.com (Patient Account)';
     if (titleEl) titleEl.textContent = 'Patient Portal';
-    if (descEl) descEl.textContent = 'Browse specialist doctors, view qualifications & fees, and book visits.';
+    if (descEl) descEl.textContent = 'Patient login only. Check consultations, view prescriptions & diagnostic test reports.';
+    if (bannerEl) bannerEl.className = 'bg-teal-50 border border-teal-200 rounded-xl p-3 mb-4 text-xs text-teal-900 transition';
+    if (btnSubmit) {
+      btnSubmit.textContent = 'Sign In to Patient Portal';
+      btnSubmit.className = 'w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl transition shadow-md shadow-teal-600/20 text-sm';
+    }
   } else if (role === 'DOCTOR') {
-    if (tabDoctor) tabDoctor.className = 'login-role-tab py-2 rounded-xl transition bg-white text-teal-800 shadow-xs';
-    if (emailInput && !emailInput.value) emailInput.placeholder = 'e.g. doctor@careconnect.com';
+    if (tabDoctor) tabDoctor.className = 'login-role-tab py-2 rounded-xl transition bg-white text-sky-800 shadow-xs font-bold';
+    if (emailInput && !emailInput.value) emailInput.placeholder = 'e.g. doctor@careconnect.com (Doctor Account)';
     if (titleEl) titleEl.textContent = 'Doctor Portal';
-    if (descEl) descEl.textContent = 'Access patient health charts, medical history, conduct consultations, and write e-prescriptions.';
+    if (descEl) descEl.textContent = 'Doctors & specialists only. Access clinical queue, health records & e-prescriptions.';
+    if (bannerEl) bannerEl.className = 'bg-sky-50 border border-sky-200 rounded-xl p-3 mb-4 text-xs text-sky-900 transition';
+    if (btnSubmit) {
+      btnSubmit.textContent = 'Sign In to Doctor Portal';
+      btnSubmit.className = 'w-full py-3 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl transition shadow-md shadow-sky-600/20 text-sm';
+    }
   } else {
-    if (tabAdmin) tabAdmin.className = 'login-role-tab py-2 rounded-xl transition bg-white text-teal-800 shadow-xs';
-    if (emailInput && !emailInput.value) emailInput.placeholder = 'e.g. admin@careconnect.com';
+    if (tabAdmin) tabAdmin.className = 'login-role-tab py-2 rounded-xl transition bg-white text-indigo-800 shadow-xs font-bold';
+    if (emailInput && !emailInput.value) emailInput.placeholder = 'e.g. admin@careconnect.com (Admin Account)';
     if (titleEl) titleEl.textContent = 'Administrator Portal';
-    if (descEl) descEl.textContent = 'Hospital management oversight, onboard doctors, manage patients, and practice analytics.';
+    if (descEl) descEl.textContent = 'Hospital management oversight only. Onboard doctors, manage roster & analytics.';
+    if (bannerEl) bannerEl.className = 'bg-indigo-50 border border-indigo-200 rounded-xl p-3 mb-4 text-xs text-indigo-900 transition';
+    if (btnSubmit) {
+      btnSubmit.textContent = 'Sign In to Admin Portal';
+      btnSubmit.className = 'w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition shadow-md shadow-indigo-600/20 text-sm';
+    }
   }
 }
 
@@ -179,8 +196,8 @@ function setupLoginForm() {
       const password = document.getElementById('loginPassword').value.trim();
 
       try {
-        const res = await API.login(email, password);
-        showToast(`Welcome, ${res.user.name}!`, 'success');
+        const res = await API.login(email, password, selectedLoginRole);
+        showToast(`Welcome, ${res.user.name}! Signed into ${selectedLoginRole} Portal.`, 'success');
         checkAuthState();
       } catch (err) {
         showToast(err.message || 'Login failed. Please check credentials.', 'error');

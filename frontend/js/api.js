@@ -71,7 +71,7 @@ const API = {
     }
   },
 
-  async login(email, password) {
+  async login(email, password, requiredRole = null) {
     const cleanEmail = (email || '').trim().toLowerCase();
 
     if (this.USE_BACKEND_API) {
@@ -83,7 +83,15 @@ const API = {
         });
         if (res.ok) {
           const data = await res.json();
-          const cleanRole = data.role.replace('ROLE_', '');
+          const cleanRole = data.role.replace('ROLE_', '').toUpperCase();
+
+          // Strict Role Enforcement Check
+          if (requiredRole && cleanRole !== requiredRole.toUpperCase()) {
+            const roleLabels = { PATIENT: 'Patient', DOCTOR: 'Doctor', ADMIN: 'Administrator' };
+            const actual = roleLabels[cleanRole] || cleanRole;
+            const expected = roleLabels[requiredRole.toUpperCase()] || requiredRole;
+            throw new Error(`Access Denied: This is the ${expected} Portal. You have a ${actual} account — please select the "${actual}" tab above to sign in.`);
+          }
 
           let patientId = null;
           let doctorId = null;
@@ -119,6 +127,9 @@ const API = {
           return { success: true, user: profile };
         }
       } catch (err) {
+        if (err.message && err.message.startsWith('Access Denied')) {
+          throw err;
+        }
         console.warn('Backend unavailable, falling back to local storage auth:', err);
       }
     }
@@ -127,6 +138,15 @@ const API = {
     const user = users.find(u => u.email.toLowerCase() === cleanEmail || (u.name && u.name.toLowerCase() === cleanEmail));
     
     if (user && (user.password === password || password === 'demo123')) {
+      const userRole = (user.role || '').toUpperCase();
+
+      // Strict Role Enforcement Check
+      if (requiredRole && userRole !== requiredRole.toUpperCase()) {
+        const roleLabels = { PATIENT: 'Patient', DOCTOR: 'Doctor', ADMIN: 'Administrator' };
+        const actual = roleLabels[userRole] || userRole;
+        const expected = roleLabels[requiredRole.toUpperCase()] || requiredRole;
+        throw new Error(`Access Denied: This is the ${expected} Portal. You have a ${actual} account — please select the "${actual}" tab above to sign in.`);
+      }
       let patientId = user.patientId;
       let doctorId = user.doctorId;
 

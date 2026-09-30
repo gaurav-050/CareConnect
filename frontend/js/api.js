@@ -37,8 +37,30 @@ const API = {
   // -------------------------------------------------------------
   getCurrentUser() {
     this.initStorage();
-    const user = localStorage.getItem('ag_care_current_user');
-    return user ? JSON.parse(user) : null;
+    const raw = localStorage.getItem('ag_care_current_user');
+    if (!raw) return null;
+    let user = JSON.parse(raw);
+
+    // Auto-heal missing patientId or doctorId on current session
+    if (user.role === 'PATIENT' && !user.patientId) {
+      const patients = this.getPatients();
+      const p = patients.find(p => 
+        (user.email && p.email && p.email.toLowerCase() === user.email.toLowerCase()) ||
+        (user.name && p.name && p.name.toLowerCase() === user.name.toLowerCase())
+      );
+      user.patientId = p ? p.id : user.id;
+      localStorage.setItem('ag_care_current_user', JSON.stringify(user));
+    } else if (user.role === 'DOCTOR' && !user.doctorId) {
+      const doctors = this.getDoctors();
+      const d = doctors.find(d => 
+        (user.email && d.email && d.email.toLowerCase() === user.email.toLowerCase()) ||
+        (user.name && d.name && d.name.toLowerCase() === user.name.toLowerCase())
+      );
+      user.doctorId = d ? d.id : user.id;
+      localStorage.setItem('ag_care_current_user', JSON.stringify(user));
+    }
+
+    return user;
   },
 
   setCurrentUser(user) {
@@ -50,6 +72,8 @@ const API = {
   },
 
   async login(email, password) {
+    const cleanEmail = (email || '').trim().toLowerCase();
+
     if (this.USE_BACKEND_API) {
       try {
         const res = await fetch(`${this.BACKEND_BASE_URL}/auth/login`, {
@@ -59,13 +83,35 @@ const API = {
         });
         if (res.ok) {
           const data = await res.json();
+          const cleanRole = data.role.replace('ROLE_', '');
+
+          let patientId = null;
+          let doctorId = null;
+          if (cleanRole === 'PATIENT') {
+            const patients = this.getPatients();
+            const p = patients.find(p => 
+              (p.email && p.email.toLowerCase() === cleanEmail) ||
+              (p.name && p.name.toLowerCase() === (data.fullName || data.username).toLowerCase())
+            );
+            patientId = p ? p.id : data.id;
+          } else if (cleanRole === 'DOCTOR') {
+            const doctors = this.getDoctors();
+            const d = doctors.find(d => 
+              (d.email && d.email.toLowerCase() === cleanEmail) ||
+              (d.name && d.name.toLowerCase() === (data.fullName || data.username).toLowerCase())
+            );
+            doctorId = d ? d.id : data.id;
+          }
+
           const profile = {
             id: data.id,
+            patientId: patientId,
+            doctorId: doctorId,
             name: data.fullName || data.username,
             email: data.email,
-            role: data.role.replace('ROLE_', ''),
+            role: cleanRole,
             token: data.token,
-            avatar: data.role.includes('DOCTOR')
+            avatar: cleanRole.includes('DOCTOR')
               ? "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80"
               : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
           };
@@ -78,11 +124,52 @@ const API = {
     }
 
     const users = JSON.parse(localStorage.getItem('ag_care_users') || '[]');
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const user = users.find(u => u.email.toLowerCase() === cleanEmail || (u.name && u.name.toLowerCase() === cleanEmail));
     
     if (user && (user.password === password || password === 'demo123')) {
+      let patientId = user.patientId;
+      let doctorId = user.doctorId;
+
+      if (user.role === 'PATIENT') {
+        const patients = this.getPatients();
+        let p = patients.find(p => 
+          (p.email && p.email.toLowerCase() === cleanEmail) ||
+          (p.name && p.name.toLowerCase() === user.name.toLowerCase())
+        );
+        if (!p) {
+          const newId = patients.length > 0 ? Math.max(...patients.map(x => x.id)) + 1 : 1;
+          p = {
+            id: newId,
+            mrn: `PAT-2026-00${newId}`,
+            name: user.name,
+            email: user.email,
+            phone: user.phone || '+1 555-0000',
+            dob: user.dob || '2000-01-01',
+            gender: user.gender || 'Not Specified',
+            bloodGroup: user.bloodGroup || 'O+',
+            address: user.address || 'Local Resident',
+            emergencyContact: 'Not Provided',
+            allergies: user.allergies || 'None recorded',
+            chronicConditions: 'None',
+            status: 'Active'
+          };
+          patients.push(p);
+          localStorage.setItem('ag_care_patients', JSON.stringify(patients));
+        }
+        patientId = p.id;
+      } else if (user.role === 'DOCTOR') {
+        const doctors = this.getDoctors();
+        const d = doctors.find(d => 
+          (d.email && d.email.toLowerCase() === cleanEmail) ||
+          (d.name && d.name.toLowerCase() === user.name.toLowerCase())
+        );
+        doctorId = d ? d.id : user.id;
+      }
+
       const fullProfile = {
         id: user.id,
+        patientId: patientId,
+        doctorId: doctorId,
         name: user.name,
         email: user.email,
         role: user.role,
@@ -141,14 +228,13 @@ const API = {
       password: userData.password,
       role: userData.role || 'PATIENT'
     };
-    users.push(newUser);
-    localStorage.setItem('ag_care_users', JSON.stringify(users));
 
     if (newUser.role === 'PATIENT') {
       const patients = this.getPatients();
+      const newId = patients.length > 0 ? Math.max(...patients.map(p => p.id)) + 1 : 1;
       const newPatient = {
-        id: patients.length + 1,
-        mrn: `PAT-2026-00${patients.length + 1}`,
+        id: newId,
+        mrn: `PAT-2026-00${newId}`,
         name: userData.name,
         email: userData.email,
         phone: userData.phone || '+1 555-0000',
@@ -163,7 +249,11 @@ const API = {
       };
       patients.push(newPatient);
       localStorage.setItem('ag_care_patients', JSON.stringify(patients));
+      newUser.patientId = newId;
     }
+
+    users.push(newUser);
+    localStorage.setItem('ag_care_users', JSON.stringify(users));
 
     // Do not auto-login; user will go to sign in portal
     return { success: true, user: newUser };
@@ -355,16 +445,20 @@ const API = {
   createAppointment(aptData) {
     const list = this.getAppointments();
     const doctor = this.getDoctorById(aptData.doctorId);
-    const patient = this.getPatientById(aptData.patientId);
+    let patient = this.getPatientById(aptData.patientId);
+    if (!patient && aptData.patientEmail) {
+      patient = this.getPatients().find(p => p.email && p.email.toLowerCase() === aptData.patientEmail.toLowerCase());
+    }
 
     const newApt = {
       id: list.length > 0 ? Math.max(...list.map(a => a.id)) + 1 : 1,
       appointmentNumber: `APT-${1000 + list.length + 1}`,
-      patientId: Number(aptData.patientId),
-      patientName: patient ? patient.name : "Patient",
-      doctorId: Number(aptData.doctorId),
-      doctorName: doctor ? doctor.name : "Doctor",
-      specialization: doctor ? doctor.specialization : "General",
+      patientId: patient ? patient.id : Number(aptData.patientId),
+      patientName: patient ? patient.name : (aptData.patientName || "Patient"),
+      patientEmail: patient ? patient.email : (aptData.patientEmail || ""),
+      doctorId: doctor ? doctor.id : Number(aptData.doctorId),
+      doctorName: doctor ? doctor.name : (aptData.doctorName || "Doctor"),
+      specialization: doctor ? doctor.specialization : (aptData.specialization || "General Medicine"),
       dateTime: aptData.dateTime,
       reason: aptData.reason,
       status: "SCHEDULED"

@@ -32,6 +32,45 @@ function showToast(message, type = 'success') {
 }
 
 // -------------------------------------------------------------
+// USER IDENTITY HELPERS
+// -------------------------------------------------------------
+function getActivePatient() {
+  if (!activeUser) return null;
+  const patients = API.getPatients();
+  if (activeUser.patientId) {
+    const p = patients.find(x => Number(x.id) === Number(activeUser.patientId));
+    if (p) return p;
+  }
+  if (activeUser.email) {
+    const p = patients.find(x => x.email && x.email.toLowerCase() === activeUser.email.toLowerCase().trim());
+    if (p) return p;
+  }
+  if (activeUser.name) {
+    const p = patients.find(x => x.name && x.name.toLowerCase() === activeUser.name.toLowerCase().trim());
+    if (p) return p;
+  }
+  return patients.length > 0 ? patients[0] : null;
+}
+
+function getActiveDoctor() {
+  if (!activeUser) return null;
+  const doctors = API.getDoctors();
+  if (activeUser.doctorId) {
+    const d = doctors.find(x => Number(x.id) === Number(activeUser.doctorId));
+    if (d) return d;
+  }
+  if (activeUser.email) {
+    const d = doctors.find(x => x.email && x.email.toLowerCase() === activeUser.email.toLowerCase().trim());
+    if (d) return d;
+  }
+  if (activeUser.name) {
+    const d = doctors.find(x => x.name && x.name.toLowerCase() === activeUser.name.toLowerCase().trim());
+    if (d) return d;
+  }
+  return doctors.length > 0 ? doctors[0] : null;
+}
+
+// -------------------------------------------------------------
 // AUTHENTICATION & LOGIN SCREEN LOGIC
 // -------------------------------------------------------------
 function checkAuthState() {
@@ -875,9 +914,29 @@ function renderAppointments() {
   // Filter based on active role
   let appointments = allAppointments;
   if (activeUser?.role === 'PATIENT') {
-    appointments = allAppointments.filter(a => a.patientId === (activeUser.patientId || 1));
+    const me = getActivePatient();
+    const myId = me ? Number(me.id) : (activeUser.patientId ? Number(activeUser.patientId) : null);
+    const myEmail = (me?.email || activeUser.email || '').toLowerCase().trim();
+    const myName = (me?.name || activeUser.name || '').toLowerCase().trim();
+
+    appointments = allAppointments.filter(a => {
+      if (myId !== null && Number(a.patientId) === myId) return true;
+      if (myEmail && a.patientEmail && a.patientEmail.toLowerCase().trim() === myEmail) return true;
+      if (myName && a.patientName && a.patientName.toLowerCase().trim() === myName) return true;
+      return false;
+    });
   } else if (activeUser?.role === 'DOCTOR') {
-    appointments = allAppointments.filter(a => a.doctorId === (activeUser.doctorId || 1));
+    const myDoc = getActiveDoctor();
+    const myDocId = myDoc ? Number(myDoc.id) : (activeUser.doctorId ? Number(activeUser.doctorId) : null);
+    const myDocEmail = (myDoc?.email || activeUser.email || '').toLowerCase().trim();
+    const myDocName = (myDoc?.name || activeUser.name || '').toLowerCase().trim();
+
+    appointments = allAppointments.filter(a => {
+      if (myDocId !== null && Number(a.doctorId) === myDocId) return true;
+      if (myDocEmail && a.doctorEmail && a.doctorEmail.toLowerCase().trim() === myDocEmail) return true;
+      if (myDocName && a.doctorName && a.doctorName.toLowerCase().trim() === myDocName) return true;
+      return false;
+    });
   }
 
   const filtered = filter === 'ALL'
@@ -885,7 +944,16 @@ function renderAppointments() {
     : appointments.filter(a => a.status === filter);
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">No appointments found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400">
+      <div class="flex flex-col items-center justify-center gap-2">
+        <span class="text-3xl">📅</span>
+        <p class="font-medium text-slate-600">No scheduled appointments found for ${activeUser?.name || 'this patient'}.</p>
+        <p class="text-xs text-slate-400">Book a visit with any of our medical specialists.</p>
+        <button onclick="openBookAppointmentModal()" class="mt-2 text-xs bg-teal-600 hover:bg-teal-700 text-white font-semibold px-4 py-2 rounded-xl transition shadow-xs">
+          + Book an Appointment Now
+        </button>
+      </div>
+    </td></tr>`;
     return;
   }
 
@@ -939,9 +1007,15 @@ function renderMedicalRecords() {
 
   let records = allRecords;
   if (activeUser?.role === 'PATIENT') {
-    records = allRecords.filter(r => r.patientId === (activeUser.patientId || 1));
+    const me = getActivePatient();
+    const myId = me ? Number(me.id) : (activeUser.patientId ? Number(activeUser.patientId) : null);
+    const myName = (me?.name || activeUser.name || '').toLowerCase().trim();
+    records = allRecords.filter(r => (myId !== null && Number(r.patientId) === myId) || (myName && r.patientName && r.patientName.toLowerCase().trim() === myName));
   } else if (activeUser?.role === 'DOCTOR') {
-    records = allRecords.filter(r => r.doctorId === (activeUser.doctorId || 1));
+    const myDoc = getActiveDoctor();
+    const myDocId = myDoc ? Number(myDoc.id) : (activeUser.doctorId ? Number(activeUser.doctorId) : null);
+    const myDocName = (myDoc?.name || activeUser.name || '').toLowerCase().trim();
+    records = allRecords.filter(r => (myDocId !== null && Number(r.doctorId) === myDocId) || (myDocName && r.doctorName && r.doctorName.toLowerCase().trim() === myDocName));
   }
 
   if (records.length === 0) {
@@ -998,9 +1072,15 @@ function renderPrescriptions() {
 
   let prescriptions = allPrescriptions;
   if (activeUser?.role === 'PATIENT') {
-    prescriptions = allPrescriptions.filter(rx => rx.patientId === (activeUser.patientId || 1));
+    const me = getActivePatient();
+    const myId = me ? Number(me.id) : (activeUser.patientId ? Number(activeUser.patientId) : null);
+    const myName = (me?.name || activeUser.name || '').toLowerCase().trim();
+    prescriptions = allPrescriptions.filter(rx => (myId !== null && Number(rx.patientId) === myId) || (myName && rx.patientName && rx.patientName.toLowerCase().trim() === myName));
   } else if (activeUser?.role === 'DOCTOR') {
-    prescriptions = allPrescriptions.filter(rx => rx.doctorId === (activeUser.doctorId || 1));
+    const myDoc = getActiveDoctor();
+    const myDocId = myDoc ? Number(myDoc.id) : (activeUser.doctorId ? Number(activeUser.doctorId) : null);
+    const myDocName = (myDoc?.name || activeUser.name || '').toLowerCase().trim();
+    prescriptions = allPrescriptions.filter(rx => (myDocId !== null && Number(rx.doctorId) === myDocId) || (myDocName && rx.doctorName && rx.doctorName.toLowerCase().trim() === myDocName));
   }
 
   if (prescriptions.length === 0) {
@@ -1172,9 +1252,15 @@ function renderReports() {
 
   let reports = allReports;
   if (activeUser?.role === 'PATIENT') {
-    reports = allReports.filter(r => r.patientId === (activeUser.patientId || 1));
+    const me = getActivePatient();
+    const myId = me ? Number(me.id) : (activeUser.patientId ? Number(activeUser.patientId) : null);
+    const myName = (me?.name || activeUser.name || '').toLowerCase().trim();
+    reports = allReports.filter(r => (myId !== null && Number(r.patientId) === myId) || (myName && r.patientName && r.patientName.toLowerCase().trim() === myName));
   } else if (activeUser?.role === 'DOCTOR') {
-    reports = allReports.filter(r => r.doctorId === (activeUser.doctorId || 1));
+    const myDoc = getActiveDoctor();
+    const myDocId = myDoc ? Number(myDoc.id) : (activeUser.doctorId ? Number(activeUser.doctorId) : null);
+    const myDocName = (myDoc?.name || activeUser.name || '').toLowerCase().trim();
+    reports = allReports.filter(r => (myDocId !== null && Number(r.doctorId) === myDocId) || (myDocName && r.doctorName && r.doctorName.toLowerCase().trim() === myDocName));
   }
 
   const filtered = catFilter === 'ALL'
@@ -1427,8 +1513,24 @@ function setupEventListeners() {
     formBookAppointment.dataset.bound = "true";
     formBookAppointment.addEventListener('submit', (e) => {
       e.preventDefault();
+
+      let patId = document.getElementById('aptPatientSelect')?.value;
+      let patEmail = undefined;
+      let patName = undefined;
+
+      if (activeUser?.role === 'PATIENT') {
+        const me = getActivePatient();
+        if (me) {
+          patId = me.id;
+          patEmail = me.email;
+          patName = me.name;
+        }
+      }
+
       const apt = {
-        patientId: document.getElementById('aptPatientSelect').value,
+        patientId: Number(patId),
+        patientEmail: patEmail || activeUser?.email,
+        patientName: patName || activeUser?.name,
         doctorId: document.getElementById('aptDoctorSelect').value,
         dateTime: document.getElementById('aptDateTime').value,
         reason: document.getElementById('aptReason').value
@@ -1437,7 +1539,7 @@ function setupEventListeners() {
       const saved = API.createAppointment(apt);
       closeModal('modalBookAppointment');
       formBookAppointment.reset();
-      renderAppointments();
+      switchTab('appointments');
       showToast(`Appointment booked successfully! Ref: ${saved.appointmentNumber}`, 'success');
     });
   }
@@ -1556,6 +1658,11 @@ function setupEventListeners() {
 // Helpers for opening modals with pre-selected options
 function openBookAppointmentModal() {
   populateDropdowns();
+  if (activeUser?.role === 'PATIENT') {
+    const me = getActivePatient();
+    const sel = document.getElementById('aptPatientSelect');
+    if (sel && me) sel.value = me.id;
+  }
   openModal('modalBookAppointment');
 }
 
@@ -1568,6 +1675,11 @@ function openBookAppointmentForPatient(patientId) {
 
 function openBookAppointmentForDoctor(doctorId) {
   populateDropdowns();
+  if (activeUser?.role === 'PATIENT') {
+    const me = getActivePatient();
+    const sel = document.getElementById('aptPatientSelect');
+    if (sel && me) sel.value = me.id;
+  }
   const select = document.getElementById('aptDoctorSelect');
   if (select) select.value = doctorId;
   openModal('modalBookAppointment');
@@ -1652,7 +1764,17 @@ function populateDropdowns() {
   const aptPatient = document.getElementById('aptPatientSelect');
   const aptDoctor = document.getElementById('aptDoctorSelect');
   if (aptPatient) {
-    aptPatient.innerHTML = patients.map(p => `<option value="${p.id}">${p.name} (${p.mrn})</option>`).join('');
+    if (activeUser?.role === 'PATIENT') {
+      const me = getActivePatient();
+      if (me) {
+        aptPatient.innerHTML = `<option value="${me.id}">${me.name} (${me.mrn}) [You]</option>`;
+        aptPatient.value = me.id;
+      } else {
+        aptPatient.innerHTML = patients.map(p => `<option value="${p.id}">${p.name} (${p.mrn})</option>`).join('');
+      }
+    } else {
+      aptPatient.innerHTML = patients.map(p => `<option value="${p.id}">${p.name} (${p.mrn})</option>`).join('');
+    }
   }
   if (aptDoctor) {
     aptDoctor.innerHTML = doctors.map(d => `<option value="${d.id}">${d.name} - ${d.specialization}</option>`).join('');

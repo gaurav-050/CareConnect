@@ -18,6 +18,7 @@ public class DataInitializer implements CommandLineRunner {
     private final AppointmentRepository appointmentRepository;
     private final MedicalRecordRepository medicalRecordRepository;
     private final PrescriptionRepository prescriptionRepository;
+    private final DiagnosticReportRepository diagnosticReportRepository;
     private final PasswordEncoder passwordEncoder;
 
     public DataInitializer(
@@ -27,6 +28,7 @@ public class DataInitializer implements CommandLineRunner {
             AppointmentRepository appointmentRepository,
             MedicalRecordRepository medicalRecordRepository,
             PrescriptionRepository prescriptionRepository,
+            DiagnosticReportRepository diagnosticReportRepository,
             PasswordEncoder passwordEncoder
     ) {
         this.userRepository = userRepository;
@@ -35,6 +37,7 @@ public class DataInitializer implements CommandLineRunner {
         this.appointmentRepository = appointmentRepository;
         this.medicalRecordRepository = medicalRecordRepository;
         this.prescriptionRepository = prescriptionRepository;
+        this.diagnosticReportRepository = diagnosticReportRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -130,5 +133,55 @@ public class DataInitializer implements CommandLineRunner {
         rx2.addItem(new PrescriptionItem("Ibuprofen 400mg", "1 Tablet", "Twice daily as needed for pain", "5 Days", "After Food"));
         rx2.addItem(new PrescriptionItem("Diclofenac Sodium Gel 1%", "Thin layer", "3 times daily", "7 Days", "Topical application"));
         prescriptionRepository.save(rx2);
+
+        // 7. Seed Diagnostic Reports
+        DiagnosticReport rep1 = new DiagnosticReport(
+                "REP-9001",
+                "Comprehensive Metabolic & Lipid Profile",
+                "Pathology & Blood",
+                p1.getId(),
+                p1.getName(),
+                d1.getId(),
+                d1.getName(),
+                LocalDate.now().minusDays(3),
+                "Resting fasting blood glucose 94 mg/dL. Total cholesterol 188 mg/dL. Normal electrolyte balance.",
+                "Blood_Metabolic_Panel_Sept2026.pdf",
+                "https://images.unsplash.com/photo-1579154204601-01588f351e67?w=600&auto=format&fit=crop&q=80",
+                "Verified & Normal"
+        );
+
+        DiagnosticReport rep2 = new DiagnosticReport(
+                "REP-9002",
+                "12-Lead Diagnostic Electrocardiogram (ECG)",
+                "Cardiology",
+                p1.getId(),
+                p1.getName(),
+                d1.getId(),
+                d1.getName(),
+                LocalDate.now().minusDays(4),
+                "Normal sinus rhythm, heart rate 94 bpm. Mild sinus tachycardia, no ischemic ST changes.",
+                "12_Lead_ECG_Trace_Report.pdf",
+                "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?w=600&auto=format&fit=crop&q=80",
+                "Reviewed by Cardiologist"
+        );
+
+        DiagnosticReport rep3 = new DiagnosticReport(
+                "REP-9003",
+                "Right Knee Digital Radiography (X-Ray)",
+                "Radiology / Imaging",
+                p3.getId(),
+                p3.getName(),
+                d4.getId(),
+                d4.getName(),
+                LocalDate.now().minusDays(1),
+                "AP and Lateral views. No cortical breach or acute fracture. Soft tissue swelling over medial collateral ligament.",
+                "Knee_XRay_AP_Lateral.pdf",
+                "https://images.unsplash.com/photo-1516549655169-df83a0774514?w=600&auto=format&fit=crop&q=80",
+                "Normal Bones / Soft Tissue Sprain"
+        );
+
+        diagnosticReportRepository.save(rep1);
+        diagnosticReportRepository.save(rep2);
+        diagnosticReportRepository.save(rep3);
     }
 }

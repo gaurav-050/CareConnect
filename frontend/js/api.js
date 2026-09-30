@@ -537,6 +537,16 @@ const API = {
   // -------------------------------------------------------------
   getReports() {
     this.initStorage();
+    if (this.USE_BACKEND_API) {
+      fetch(`${this.BACKEND_BASE_URL}/reports`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data && Array.isArray(data)) {
+            localStorage.setItem('ag_care_reports', JSON.stringify(data));
+          }
+        })
+        .catch(() => {});
+    }
     return JSON.parse(localStorage.getItem('ag_care_reports') || '[]');
   },
 
@@ -568,6 +578,15 @@ const API = {
 
     reports.unshift(newReport);
     localStorage.setItem('ag_care_reports', JSON.stringify(reports));
+
+    if (this.USE_BACKEND_API) {
+      fetch(`${this.BACKEND_BASE_URL}/reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newReport)
+      }).catch(err => console.warn('Failed to sync report to backend:', err));
+    }
+
     return newReport;
   }
 };

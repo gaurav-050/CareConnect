@@ -72,30 +72,20 @@ function selectLoginPortal(role) {
 
   if (role === 'PATIENT') {
     if (tabPatient) tabPatient.className = 'login-role-tab py-2 rounded-xl transition bg-white text-teal-800 shadow-xs';
-    if (emailInput) emailInput.value = 'alex@example.com';
-    if (passwordInput) passwordInput.value = 'patient';
+    if (emailInput && !emailInput.value) emailInput.placeholder = 'e.g. alex@example.com';
     if (titleEl) titleEl.textContent = 'Patient Portal';
     if (descEl) descEl.textContent = 'Browse specialist doctors, view qualifications & fees, and book visits.';
   } else if (role === 'DOCTOR') {
     if (tabDoctor) tabDoctor.className = 'login-role-tab py-2 rounded-xl transition bg-white text-teal-800 shadow-xs';
-    if (emailInput) emailInput.value = 'doctor@careconnect.com';
-    if (passwordInput) passwordInput.value = 'doctor';
+    if (emailInput && !emailInput.value) emailInput.placeholder = 'e.g. doctor@careconnect.com';
     if (titleEl) titleEl.textContent = 'Doctor Portal';
     if (descEl) descEl.textContent = 'Access patient health charts, medical history, conduct consultations, and write e-prescriptions.';
   } else {
     if (tabAdmin) tabAdmin.className = 'login-role-tab py-2 rounded-xl transition bg-white text-teal-800 shadow-xs';
-    if (emailInput) emailInput.value = 'admin@careconnect.com';
-    if (passwordInput) passwordInput.value = 'admin';
+    if (emailInput && !emailInput.value) emailInput.placeholder = 'e.g. admin@careconnect.com';
     if (titleEl) titleEl.textContent = 'Administrator Portal';
     if (descEl) descEl.textContent = 'Hospital management oversight, onboard doctors, manage patients, and practice analytics.';
   }
-}
-
-// Quick 1-Click login buttons
-function quickLogin(role) {
-  const profile = API.switchRole(role);
-  showToast(`Signed in successfully as ${profile.name} (${role})`, 'success');
-  checkAuthState();
 }
 
 // Toggle between Sign In and Register Mode
@@ -836,6 +826,9 @@ function renderAdminPanel() {
             <option value="On Leave" ${d.status === 'On Leave' ? 'selected' : ''}>🟠 On Leave</option>
             <option value="Off Duty" ${d.status === 'Off Duty' ? 'selected' : ''}>⚪ Off Duty</option>
           </select>
+          <button onclick="confirmRemoveDoctor(${d.id}, '${d.name.replace(/'/g, "\\'")}')" class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-1.5 rounded-lg font-bold transition flex items-center gap-1 shadow-2xs" title="Remove doctor from availability list">
+            <span>🗑️</span> <span>Remove</span>
+          </button>
         </div>
       </div>
     `).join('');
@@ -848,6 +841,24 @@ function changeDoctorAvailability(doctorId, newStatus) {
     showToast(`${doc.name} availability updated to "${newStatus}"`, 'success');
     if (currentTab === 'doctors') renderDoctors();
     if (currentTab === 'admin') renderAdminPanel();
+  }
+}
+
+function confirmRemoveDoctor(doctorId, doctorName) {
+  if (activeUser?.role !== 'ADMIN') {
+    showToast('Only administrators have authority to remove doctors.', 'error');
+    return;
+  }
+
+  const ok = confirm(`Are you sure you want to remove ${doctorName} from the doctor availability list?\n\nThis doctor will be removed from clinic rosters and patients will no longer be able to book visits with them.`);
+  if (!ok) return;
+
+  const removed = API.removeDoctor(doctorId);
+  if (removed) {
+    showToast(`${removed.name} has been removed from the availability list.`, 'success');
+    if (currentTab === 'doctors') renderDoctors();
+    if (currentTab === 'admin') renderAdminPanel();
+    populateDropdowns();
   }
 }
 

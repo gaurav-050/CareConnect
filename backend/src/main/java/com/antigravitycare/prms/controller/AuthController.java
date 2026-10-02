@@ -115,4 +115,21 @@ public class AuthController {
         }
         return ResponseEntity.ok(user);
     }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset user password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .or(() -> userRepository.findByUsername(request.getEmail()))
+                .orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "No account found with this email or username"));
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "Password has been successfully updated. You can now sign in with your new password."));
+    }
 }

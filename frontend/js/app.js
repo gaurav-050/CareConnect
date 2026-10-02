@@ -284,6 +284,58 @@ function setupLoginForm() {
       }
     });
   }
+
+  // Handle Forgot / Reset Password Form Submit
+  const formForgot = document.getElementById('formForgotPassword');
+  if (formForgot && !formForgot.dataset.bound) {
+    formForgot.dataset.bound = "true";
+    formForgot.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('resetEmail').value.trim();
+      const newPassword = document.getElementById('resetNewPassword').value;
+      const confirmPassword = document.getElementById('resetConfirmPassword').value;
+
+      if (newPassword !== confirmPassword) {
+        showToast('Passwords do not match! Please check again.', 'error');
+        return;
+      }
+
+      if (newPassword.length < 4) {
+        showToast('Password must be at least 4 characters.', 'error');
+        return;
+      }
+
+      try {
+        const res = await API.resetPassword(email, newPassword);
+        showToast(res.message || 'Password reset successfully! Please sign in with your new password.', 'success');
+        closeModal('modalForgotPassword');
+        formForgot.reset();
+
+        // Switch to login tab and prefill email
+        toggleAuthMode('login');
+        const emailField = document.getElementById('loginEmail');
+        if (emailField) emailField.value = email;
+
+        const passField = document.getElementById('loginPassword');
+        if (passField) {
+          passField.value = '';
+          passField.focus();
+        }
+      } catch (err) {
+        showToast(err.message || 'Failed to reset password. Check if email/username exists.', 'error');
+      }
+    });
+  }
+}
+
+// Open Forgot Password Modal
+function openForgotPasswordModal() {
+  const loginEmail = document.getElementById('loginEmail')?.value.trim();
+  const resetEmail = document.getElementById('resetEmail');
+  if (resetEmail && loginEmail) {
+    resetEmail.value = loginEmail;
+  }
+  openModal('modalForgotPassword');
 }
 
 // Handle Logout

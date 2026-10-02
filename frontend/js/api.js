@@ -279,6 +279,48 @@ const API = {
     return { success: true, user: newUser };
   },
 
+  async resetPassword(email, newPassword) {
+    const cleanEmail = (email || '').trim().toLowerCase();
+
+    if (this.USE_BACKEND_API) {
+      try {
+        const res = await fetch(`${this.BACKEND_BASE_URL}/auth/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, newPassword: newPassword })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Update local storage if present
+          const users = JSON.parse(localStorage.getItem('ag_care_users') || '[]');
+          const u = users.find(u => u.email.toLowerCase() === cleanEmail || (u.name && u.name.toLowerCase() === cleanEmail));
+          if (u) {
+            u.password = newPassword;
+            localStorage.setItem('ag_care_users', JSON.stringify(users));
+          }
+          return { success: true, message: data.message || 'Password updated successfully' };
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Failed to reset password.');
+        }
+      } catch (err) {
+        if (err.message && !err.message.includes('Failed to fetch') && !err.message.includes('NetworkError')) {
+          throw err;
+        }
+        console.warn('Backend unavailable, falling back to local reset password:', err);
+      }
+    }
+
+    const users = JSON.parse(localStorage.getItem('ag_care_users') || '[]');
+    const user = users.find(u => u.email.toLowerCase() === cleanEmail || (u.name && u.name.toLowerCase() === cleanEmail));
+    if (!user) {
+      throw new Error('No account found with this email or username.');
+    }
+    user.password = newPassword;
+    localStorage.setItem('ag_care_users', JSON.stringify(users));
+    return { success: true, message: 'Password has been successfully updated. You can now sign in.' };
+  },
+
   logout() {
     localStorage.removeItem('ag_care_current_user');
     return Promise.resolve(true);

@@ -102,4 +102,25 @@ public class AuthDtos {
         public String getFullName() { return fullName; }
         public void setFullName(String fullName) { this.fullName = fullName; }
     }
+
+    public static class ResetPasswordRequest {
+        @NotBlank(message = "Email or username is required")
+        private String email;
+
+        @NotBlank(message = "New password is required")
+        private String newPassword;
+
+        public ResetPasswordRequest() {}
+
+        public ResetPasswordRequest(String email, String newPassword) {
+            this.email = email;
+            this.newPassword = newPassword;
+        }
+
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+
+        public String getNewPassword() { return newPassword; }
+        public void setNewPassword(String newPassword) { this.newPassword = newPassword; }
+    }
 }
